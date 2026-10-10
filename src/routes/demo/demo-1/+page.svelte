@@ -18,7 +18,13 @@
 	progressClass="bg-orange-400"
 >
 	<!-- Portada: composición asimétrica y contraste cálido/frío. -->
-	<Slide title="Portada" subtitle="Paleta y composición" badge="01 · Apertura" bg="bg-[#f3ead7]">
+	<Slide
+		title="Portada"
+		subtitle="Paleta y composición"
+		badge="01 · Apertura"
+		bg="bg-[#f3ead7]"
+		entrance="fade-up"
+	>
 		<div
 			class="relative flex h-full items-center overflow-hidden bg-[#f3ead7] px-24 text-[#203b39]"
 		>
@@ -35,6 +41,10 @@
 				</h1>
 				<p class="mt-10 max-w-xl text-2xl leading-relaxed text-[#45615b]">
 					Una identidad cálida para una biblioteca inventada entre las nubes.
+				</p>
+				<p class="mt-6 max-w-xl text-lg leading-relaxed text-[#45615b]">
+					Movimiento opcional: <code>entrance="fade-up"</code> aplica la entrada incluida. Para otro
+					estilo, cambia a <code>entranceClass</code> y define su CSS en tu presentación.
 				</p>
 			</div>
 			<div

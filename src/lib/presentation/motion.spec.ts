@@ -45,6 +45,62 @@ describe('optional slide entrance motion', () => {
 	});
 
 	it.skipIf(!runtimeBaseUrl)(
+		'exercises demo-owned built-in and custom entrances on navigation, reentry, reduced motion, print, and overview',
+		async () => {
+			browser = await chromium.launch({ headless: true });
+			const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+
+			await page.goto(`${runtimeBaseUrl}/demo/demo-1`, { waitUntil: 'networkidle' });
+			const builtInSlide = page.locator('.slide-container[data-slide-index="0"] .slide-print-card');
+			expect(await builtInSlide.getAttribute('class')).toMatch(/slide-entrance-fade-up/);
+			const builtInAnimation = () =>
+				builtInSlide.evaluate((element) => getComputedStyle(element).animationName);
+			expect(await builtInAnimation()).toMatch(/(?:^|-)slide-enter$/);
+			await page.keyboard.press('ArrowRight');
+			await page.keyboard.press('ArrowLeft');
+			expect(await builtInSlide.getAttribute('class')).toMatch(/slide-entrance-fade-up/);
+			expect(await builtInAnimation()).toMatch(/(?:^|-)slide-enter$/);
+			await page.emulateMedia({ media: 'screen', reducedMotion: 'reduce' });
+			expect(await builtInAnimation()).toBe('none');
+			await page.emulateMedia({ media: 'print' });
+			expect(await builtInAnimation()).toBe('none');
+			await page.emulateMedia({ media: 'screen', reducedMotion: 'no-preference' });
+			await page.keyboard.press('o');
+			expect(await page.locator('.overview-card').count()).toBe(4);
+			expect(await page.locator('.slide-entrance-fade-up').count()).toBe(0);
+
+			await page.goto(`${runtimeBaseUrl}/demo/demo-2`, { waitUntil: 'networkidle' });
+			const customSlide = page.locator('.slide-container[data-slide-index="0"] .slide-print-card');
+			expect(await customSlide.getAttribute('class')).toMatch(/demo-two-entrance/);
+			const customMotion = () =>
+				customSlide.evaluate((element) => ({
+					animation: getComputedStyle(element).animationName,
+					duration: getComputedStyle(element).animationDuration
+				}));
+			expect((await customMotion()).animation).toMatch(/(?:^|-)demo-two-enter$/);
+			await page.keyboard.press('ArrowRight');
+			await page.keyboard.press('ArrowLeft');
+			expect(await customSlide.getAttribute('class')).toMatch(/demo-two-entrance/);
+			expect((await customMotion()).animation).toMatch(/(?:^|-)demo-two-enter$/);
+
+			await page.emulateMedia({ media: 'screen', reducedMotion: 'reduce' });
+			expect((await customMotion()).animation).toBe('none');
+			await page.emulateMedia({ media: 'print' });
+			expect((await customMotion()).animation).toBe('none');
+
+			await page.emulateMedia({ media: 'screen', reducedMotion: 'no-preference' });
+			await page.keyboard.press('o');
+			const overviewCards = page.locator('.overview-card');
+			expect(await overviewCards.count()).toBe(4);
+			expect(await page.locator('.demo-two-entrance').count()).toBe(0);
+			expect(
+				await overviewCards.first().evaluate((element) => getComputedStyle(element).animationName)
+			).toBe('none');
+		},
+		20_000
+	);
+
+	it.skipIf(!runtimeBaseUrl)(
 		'disables only the custom slide effect in print and reduced motion, including after revisiting the slide',
 		async () => {
 			browser = await chromium.launch({ headless: true });
@@ -56,11 +112,12 @@ describe('optional slide entrance motion', () => {
 				content: `
 					@keyframes custom-enter { from { opacity: .2; } to { opacity: 1; } }
 					@keyframes internal-pulse { from { opacity: .5; } to { opacity: 1; } }
-					.test-custom-motion { animation: custom-enter 2s infinite; transition: opacity 2s linear; }
+					div.slide-print-card.test-custom-motion { animation: custom-enter 2s infinite; transition: opacity 2s linear; }
 					.test-internal-motion { animation: internal-pulse 2s infinite; transition: color 2s linear; }
 				`
 			});
 			await card.evaluate((element) => {
+				element.classList.remove('slide-entrance-fade-up');
 				element.classList.add('test-custom-motion', 'slide-motion-custom');
 				element.firstElementChild?.classList.add('test-internal-motion');
 			});

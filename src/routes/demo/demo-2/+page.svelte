@@ -22,6 +22,7 @@
 		subtitle="Atlas del cielo austral"
 		badge="01 · Umbral"
 		bg="bg-[#07111b]"
+		entranceClass="demo-two-entrance"
 	>
 		<div
 			class="relative flex h-full flex-col justify-between overflow-hidden bg-[#07111b] px-28 py-24 text-[#e8eee9]"
@@ -46,6 +47,11 @@
 				<p class="mt-9 max-w-2xl text-2xl leading-relaxed text-slate-300">
 					Una invitación a mirar despacio desde el Observatorio Bruma, en una noche inventada junto
 					al mar.
+				</p>
+				<p class="mt-5 max-w-2xl text-lg leading-relaxed text-slate-300">
+					Entrada propia: <code>entranceClass="demo-two-entrance"</code> conecta con el selector y los
+					keyframes definidos localmente al final de esta ruta. Cambia ambos para crear otro ritmo; impresión
+					y movimiento reducido lo desactivan.
 				</p>
 			</div>
 			<div
@@ -165,3 +171,34 @@
 		</div>
 	</Slide>
 </Deck>
+
+<style>
+	@keyframes demo-two-enter {
+		from {
+			opacity: 0;
+			transform: translateY(2rem) scale(0.985);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0) scale(1);
+		}
+	}
+
+	:global(.demo-two-entrance) {
+		animation: demo-two-enter 700ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		:global(.demo-two-entrance) {
+			animation: none !important;
+			transition: none !important;
+		}
+	}
+
+	@media print {
+		:global(.demo-two-entrance) {
+			animation: none !important;
+			transition: none !important;
+		}
+	}
+</style>
