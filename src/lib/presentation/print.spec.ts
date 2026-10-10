@@ -20,10 +20,17 @@ describe('presentation print layout', () => {
 		expect(deck).toMatch(/addEventListener\(['"]afterprint['"]/);
 		expect(deck).toMatch(/printModeFromUrl/);
 		expect(slide).toMatch(/animate = false/);
-		expect(slide).toMatch(/class:slide-animate=\{animate && isActive && !deck\.isPrint\}/);
-		expect(slide).toMatch(/@media print[\s\S]*?animation:\s*none\s*!important/);
 		expect(slide).toMatch(
-			/@media \(prefers-reduced-motion: reduce\)[\s\S]*?animation:\s*none\s*!important/
+			/class:slide-animate=\{animate && !entrance && !entranceClass && isActive && !deck\.isPrint\}/
+		);
+		expect(slide).toMatch(
+			/class:slide-motion-custom=\{Boolean\(entranceClass\) && \(deck\.isPrint \|\| isActive\)\}/
+		);
+		expect(slide).toMatch(
+			/@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.slide-motion-custom[\s\S]*?animation: none !important;[\s\S]*?transition: none !important;/
+		);
+		expect(slide).toMatch(
+			/@media print[\s\S]*?\.slide-motion-custom[\s\S]*?animation: none !important;[\s\S]*?transition: none !important;/
 		);
 	});
 

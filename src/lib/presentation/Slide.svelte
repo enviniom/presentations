@@ -15,8 +15,12 @@
 		class?: string;
 		/** Inline styles for the slide canvas */
 		style?: string;
-		/** Opt in to a brief entrance animation when this slide becomes active */
+		/** Legacy brief entrance animation; used only when entrance and entranceClass are unset */
 		animate?: boolean;
+		/** Built-in entrance effect; takes precedence over animate, and omitted slides remain still */
+		entrance?: 'fade-up';
+		/** Presentation-authored class; takes precedence over entrance and animate */
+		entranceClass?: string;
 		/** Slide content */
 		children?: Snippet;
 
@@ -33,6 +37,8 @@
 		class: customClass = '',
 		style = '',
 		animate = false,
+		entrance = undefined,
+		entranceClass = '',
 		children,
 		layout = 'blank',
 		footer
@@ -88,8 +94,17 @@
 		data-slide-index={slideIndex}
 	>
 		<div
-			class="slide-print-card h-full w-full overflow-hidden {bg} {customClass}"
-			class:slide-animate={animate && isActive && !deck.isPrint}
+			class="slide-print-card h-full w-full overflow-hidden {bg} {customClass} {isActive &&
+			!deck.isPrint &&
+			entranceClass
+				? entranceClass
+				: ''}"
+			class:slide-animate={animate && !entrance && !entranceClass && isActive && !deck.isPrint}
+			class:slide-entrance-fade-up={entrance === 'fade-up' &&
+				!entranceClass &&
+				isActive &&
+				!deck.isPrint}
+			class:slide-motion-custom={Boolean(entranceClass) && (deck.isPrint || isActive)}
 			{style}
 		>
 			{#if layout !== 'blank' && title}
@@ -166,19 +181,32 @@
 		}
 	}
 
-	.slide-animate {
+	.slide-animate,
+	.slide-entrance-fade-up {
 		animation: slide-enter 350ms ease-out both;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.slide-animate {
+		.slide-animate,
+		.slide-entrance-fade-up {
 			animation: none !important;
+		}
+
+		.slide-motion-custom {
+			animation: none !important;
+			transition: none !important;
 		}
 	}
 
 	@media print {
-		.slide-animate {
+		.slide-animate,
+		.slide-entrance-fade-up {
 			animation: none !important;
+		}
+
+		.slide-motion-custom {
+			animation: none !important;
+			transition: none !important;
 		}
 	}
 </style>
