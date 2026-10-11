@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Deck, Slide } from '#lib/presentation/index.js';
+	import { Deck, Reveal, Slide } from '#lib/presentation/index.js';
 </script>
 
 <svelte:head>
@@ -16,6 +16,7 @@
 	class="bg-stone-950 text-stone-100"
 	accentClass="bg-orange-500 hover:bg-orange-400"
 	progressClass="bg-orange-400"
+	transition="fade"
 >
 	<!-- Portada: composición asimétrica y contraste cálido/frío. -->
 	<Slide
@@ -36,15 +37,18 @@
 				<p class="mb-8 text-xl font-bold tracking-[0.3em] text-[#b84d37] uppercase">
 					Cuaderno visual · 01
 				</p>
-				<h1 class="max-w-3xl text-8xl leading-[0.95] font-black tracking-tight">
-					Un lugar <span class="font-serif font-normal italic">para</span> imaginar
-				</h1>
-				<p class="mt-10 max-w-xl text-2xl leading-relaxed text-[#45615b]">
+				<Reveal effect="rise">
+					<h1 class="max-w-3xl text-8xl leading-[0.95] font-black tracking-tight">
+						Un lugar <span class="font-serif font-normal italic">para</span> imaginar
+					</h1>
+				</Reveal>
+				<Reveal effect="rise" class="mt-10 max-w-xl text-2xl leading-relaxed text-[#45615b]">
 					Una identidad cálida para una biblioteca inventada entre las nubes.
-				</p>
+				</Reveal>
 				<p class="mt-6 max-w-xl text-lg leading-relaxed text-[#45615b]">
-					Movimiento opcional: <code>entrance="fade-up"</code> aplica la entrada incluida. Para otro
-					estilo, cambia a <code>entranceClass</code> y define su CSS en tu presentación.
+					El deck usa <code>transition="fade"</code> entre diapositivas; cada
+					<code>&lt;Reveal effect="rise"&gt;</code> anima solo este elemento. Ambas opciones son independientes
+					y se pueden omitir.
 				</p>
 			</div>
 			<div

@@ -47,6 +47,10 @@
 				<p class="mt-9 max-w-2xl text-2xl leading-relaxed text-[#5a7165]">
 					Un paseo inventado por las plantas pequeñas que dibujan la orilla.
 				</p>
+				<p class="mt-6 max-w-xl text-lg leading-relaxed text-[#5a7165]">
+					Esta demo no usa transiciones ni reveals: la quietud es una decisión de diseño, y el motor
+					la conserva cuando no se pide movimiento.
+				</p>
 			</div>
 			<div
 				class="absolute right-20 bottom-16 text-right text-sm font-semibold tracking-widest text-[#496558] uppercase"

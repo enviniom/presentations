@@ -1,5 +1,11 @@
 <script lang="ts">
-	import { Deck, Slide } from '#lib/presentation/index.js';
+	import { Deck, Reveal, Slide, type SlideTransitionEffect } from '#lib/presentation/index.js';
+
+	const transition: SlideTransitionEffect = {
+		enterClass: 'demo-two-slide-enter',
+		exitClass: 'demo-two-slide-exit',
+		duration: 700
+	};
 </script>
 
 <svelte:head>
@@ -16,13 +22,13 @@
 	class="bg-[#07111b] text-[#e8eee9]"
 	accentClass="bg-cyan-300 text-[#07111b] hover:bg-cyan-200"
 	progressClass="bg-cyan-300"
+	{transition}
 >
 	<Slide
 		title="La noche empieza aquí"
 		subtitle="Atlas del cielo austral"
 		badge="01 · Umbral"
 		bg="bg-[#07111b]"
-		entranceClass="demo-two-entrance"
 	>
 		<div
 			class="relative flex h-full flex-col justify-between overflow-hidden bg-[#07111b] px-28 py-24 text-[#e8eee9]"
@@ -41,17 +47,21 @@
 				Cuaderno de campo · 38° sur
 			</p>
 			<div class="relative max-w-4xl">
-				<h1 class="text-8xl leading-[0.92] font-light tracking-tight">
-					El cielo<br /><span class="font-serif text-cyan-200 italic">también</span> respira.
-				</h1>
+				<Reveal effectClass="demo-two-reveal">
+					<h1 class="text-8xl leading-[0.92] font-light tracking-tight">
+						El cielo<br /><span class="font-serif text-cyan-200 italic">también</span> respira.
+					</h1>
+				</Reveal>
 				<p class="mt-9 max-w-2xl text-2xl leading-relaxed text-slate-300">
 					Una invitación a mirar despacio desde el Observatorio Bruma, en una noche inventada junto
 					al mar.
 				</p>
 				<p class="mt-5 max-w-2xl text-lg leading-relaxed text-slate-300">
-					Entrada propia: <code>entranceClass="demo-two-entrance"</code> conecta con el selector y los
-					keyframes definidos localmente al final de esta ruta. Cambia ambos para crear otro ritmo; impresión
-					y movimiento reducido lo desactivan.
+					Este deck define sus clases de entrada/salida y <code>duration: 700</code> en JS; el CSS
+					local debe usar la misma duración. El título usa
+					<code>effectClass="demo-two-reveal"</code>
+					como efecto independiente. En la guía, las tres señales aparecen en una secuencia breve; ambos
+					efectos respetan impresión y movimiento reducido.
 				</p>
 			</div>
 			<div
@@ -83,7 +93,10 @@
 					horizonte.
 				</p>
 			</div>
-			<div class="relative col-span-7 overflow-hidden rounded-[2rem] bg-[#7aa9a0]">
+			<Reveal
+				effectClass="demo-two-landscape-reveal"
+				class="relative col-span-7 overflow-hidden rounded-[2rem] bg-[#7aa9a0]"
+			>
 				<div class="absolute inset-x-0 bottom-0 h-[38%] bg-[#213e45]"></div>
 				<div class="absolute right-24 bottom-[29%] h-80 w-80 rounded-full bg-[#eecb8a]"></div>
 				<div class="absolute right-36 bottom-[38%] h-64 w-64 rounded-full bg-[#cfdad0]"></div>
@@ -98,7 +111,7 @@
 				>
 					Meseta de la Marea
 				</div>
-			</div>
+			</Reveal>
 		</div>
 	</Slide>
 
@@ -116,27 +129,33 @@
 				<h2 class="mt-5 text-6xl font-semibold">El cielo se lee en capas.</h2>
 			</div>
 			<div class="grid grid-cols-3 gap-7">
-				<article class="border-t-2 border-cyan-200 pt-6">
-					<span class="font-mono text-5xl text-cyan-200">01</span>
-					<h3 class="mt-7 text-3xl font-semibold">El horizonte</h3>
-					<p class="mt-4 text-xl leading-relaxed text-slate-300">
-						Busca una línea oscura y deja que la vista se acostumbre a la penumbra.
-					</p>
-				</article>
-				<article class="border-t-2 border-[#eecb8a] pt-6">
-					<span class="font-mono text-5xl text-[#eecb8a]">02</span>
-					<h3 class="mt-7 text-3xl font-semibold">La pausa</h3>
-					<p class="mt-4 text-xl leading-relaxed text-slate-300">
-						Quédate unos minutos: algunas luces aparecen cuando dejamos de perseguirlas.
-					</p>
-				</article>
-				<article class="border-t-2 border-[#8fc4b5] pt-6">
-					<span class="font-mono text-5xl text-[#8fc4b5]">03</span>
-					<h3 class="mt-7 text-3xl font-semibold">La bitácora</h3>
-					<p class="mt-4 text-xl leading-relaxed text-slate-300">
-						Dibuja patrones propios y anota lo que cambia de una noche a la siguiente.
-					</p>
-				</article>
+				<Reveal effectClass="demo-two-guidance-card">
+					<article class="border-t-2 border-cyan-200 pt-6">
+						<span class="font-mono text-5xl text-cyan-200">01</span>
+						<h3 class="mt-7 text-3xl font-semibold">El horizonte</h3>
+						<p class="mt-4 text-xl leading-relaxed text-slate-300">
+							Busca una línea oscura y deja que la vista se acostumbre a la penumbra.
+						</p>
+					</article>
+				</Reveal>
+				<Reveal effectClass="demo-two-guidance-card">
+					<article class="border-t-2 border-[#eecb8a] pt-6">
+						<span class="font-mono text-5xl text-[#eecb8a]">02</span>
+						<h3 class="mt-7 text-3xl font-semibold">La pausa</h3>
+						<p class="mt-4 text-xl leading-relaxed text-slate-300">
+							Quédate unos minutos: algunas luces aparecen cuando dejamos de perseguirlas.
+						</p>
+					</article>
+				</Reveal>
+				<Reveal effectClass="demo-two-guidance-card">
+					<article class="border-t-2 border-[#8fc4b5] pt-6">
+						<span class="font-mono text-5xl text-[#8fc4b5]">03</span>
+						<h3 class="mt-7 text-3xl font-semibold">La bitácora</h3>
+						<p class="mt-4 text-xl leading-relaxed text-slate-300">
+							Dibuja patrones propios y anota lo que cambia de una noche a la siguiente.
+						</p>
+					</article>
+				</Reveal>
 			</div>
 			<p class="border-t border-white/15 pt-5 text-lg text-slate-400">
 				No hace falta saber los nombres para empezar a reconocer el cielo.
@@ -162,18 +181,20 @@
 			<p class="text-xl font-bold tracking-[0.3em] text-[#326c69] uppercase">
 				Hasta la próxima observación
 			</p>
-			<h2 class="relative mt-9 max-w-5xl text-7xl leading-tight font-semibold">
-				El universo es inmenso.<br /><span class="font-serif font-normal italic"
-					>La curiosidad, también.</span
-				>
-			</h2>
+			<Reveal effectClass="demo-two-conclusion">
+				<h2 class="relative mt-9 max-w-5xl text-7xl leading-tight font-semibold">
+					El universo es inmenso.<br /><span class="font-serif font-normal italic"
+						>La curiosidad, también.</span
+					>
+				</h2>
+			</Reveal>
 			<p class="mt-10 text-2xl text-[#405b5a]">Observatorio Bruma · relato enteramente ficticio</p>
 		</div>
 	</Slide>
 </Deck>
 
 <style>
-	@keyframes demo-two-enter {
+	@keyframes demo-two-slide-enter {
 		from {
 			opacity: 0;
 			transform: translateY(2rem) scale(0.985);
@@ -184,20 +205,119 @@
 		}
 	}
 
-	:global(.demo-two-entrance) {
-		animation: demo-two-enter 700ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+	@keyframes demo-two-slide-exit {
+		from {
+			opacity: 1;
+			transform: translateY(0) scale(1);
+		}
+		to {
+			opacity: 0;
+			transform: translateY(-1rem) scale(0.99);
+		}
+	}
+
+	@keyframes demo-two-reveal {
+		from {
+			opacity: 0;
+			transform: translateX(-1.5rem);
+		}
+		to {
+			opacity: 1;
+			transform: translateX(0);
+		}
+	}
+
+	@keyframes demo-two-landscape-arrive {
+		from {
+			opacity: 0;
+			transform: scale(1.025);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+
+	@keyframes demo-two-card-arrive {
+		from {
+			opacity: 0;
+			transform: translateY(0.65rem);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@keyframes demo-two-conclusion-arrive {
+		from {
+			opacity: 0;
+			transform: translateY(0.9rem);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	:global(.demo-two-slide-enter) {
+		animation: demo-two-slide-enter 700ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+	}
+
+	:global(.demo-two-slide-exit) {
+		animation: demo-two-slide-exit 700ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+	}
+
+	:global(.demo-two-reveal) {
+		animation: demo-two-reveal 550ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+	}
+
+	:global(.demo-two-landscape-reveal) {
+		animation: demo-two-landscape-arrive 650ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+	}
+
+	:global(.demo-two-guidance-card) {
+		animation: demo-two-card-arrive 450ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+	}
+
+	:global(.demo-two-guidance-card:nth-child(1)) {
+		animation-delay: 120ms;
+	}
+
+	:global(.demo-two-guidance-card:nth-child(2)) {
+		animation-delay: 260ms;
+	}
+
+	:global(.demo-two-guidance-card:nth-child(3)) {
+		animation-delay: 400ms;
+	}
+
+	:global(.demo-two-conclusion) {
+		animation: demo-two-conclusion-arrive 550ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		:global(.demo-two-entrance) {
+		:global(.demo-two-slide-enter),
+		:global(.demo-two-slide-exit),
+		:global(.demo-two-reveal),
+		:global(.demo-two-landscape-reveal),
+		:global(.demo-two-guidance-card),
+		:global(.demo-two-conclusion) {
 			animation: none !important;
+			animation-delay: 0s !important;
 			transition: none !important;
 		}
 	}
 
 	@media print {
-		:global(.demo-two-entrance) {
+		:global(.demo-two-slide-enter),
+		:global(.demo-two-slide-exit),
+		:global(.demo-two-reveal),
+		:global(.demo-two-landscape-reveal),
+		:global(.demo-two-guidance-card),
+		:global(.demo-two-conclusion) {
 			animation: none !important;
+			animation-delay: 0s !important;
 			transition: none !important;
 		}
 	}

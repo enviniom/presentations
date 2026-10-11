@@ -45,59 +45,178 @@ describe('optional slide entrance motion', () => {
 	});
 
 	it.skipIf(!runtimeBaseUrl)(
-		'exercises demo-owned built-in and custom entrances on navigation, reentry, reduced motion, print, and overview',
+		'initializes Reveal safely under reduced motion without an SSR hydration warning',
+		async () => {
+			browser = await chromium.launch({ headless: true });
+			const page = await browser.newPage({ reducedMotion: 'reduce' });
+			const errors: string[] = [];
+			page.on('console', (message) => {
+				if (message.type() === 'error') errors.push(message.text());
+			});
+			await page.goto(`${runtimeBaseUrl}/demo/demo-1`, { waitUntil: 'networkidle' });
+			const reveal = page.locator('.slide-container[data-slide-index="0"] .reveal-content').first();
+			expect(await reveal.evaluate((element) => getComputedStyle(element).animationName)).toBe(
+				'none'
+			);
+			expect(errors.join(' ')).not.toMatch(/hydration|mismatch/i);
+			await page.emulateMedia({ reducedMotion: 'no-preference' });
+			await page.waitForFunction(() =>
+				getComputedStyle(
+					document.querySelector('.slide-container[data-slide-index="0"] .reveal-content')!
+				).animationName.includes('reveal-rise')
+			);
+			expect(await reveal.evaluate((element) => getComputedStyle(element).animationName)).toMatch(
+				/reveal-rise/
+			);
+		},
+		20_000
+	);
+
+	it.skipIf(!runtimeBaseUrl)(
+		'keeps each demo within a 1920x1080 screen and print canvas',
+		async () => {
+			browser = await chromium.launch({ headless: true });
+			const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+
+			for (const demo of ['demo-1', 'demo-2', 'demo-3']) {
+				await page.goto(`${runtimeBaseUrl}/demo/${demo}`, { waitUntil: 'networkidle' });
+				const screenSize = await page.evaluate(() => ({
+					width: document.documentElement.scrollWidth,
+					height: document.documentElement.scrollHeight,
+					viewportWidth: window.innerWidth,
+					viewportHeight: window.innerHeight
+				}));
+				expect(screenSize, `${demo} screen overflow`).toMatchObject({
+					width: 1920,
+					height: 1080,
+					viewportWidth: 1920,
+					viewportHeight: 1080
+				});
+
+				await page.goto(`${runtimeBaseUrl}/demo/${demo}?print=true`, {
+					waitUntil: 'networkidle'
+				});
+				await page.emulateMedia({ media: 'print' });
+				const printPages = page.locator('.slide-print-page');
+				expect(await printPages.count(), `${demo} print page count`).toBe(4);
+				for (const printPage of await printPages.all()) {
+					expect(
+						await printPage.evaluate((element) => ({
+							width: (element as HTMLElement).offsetWidth,
+							height: (element as HTMLElement).offsetHeight
+						}))
+					).toEqual({ width: 1920, height: 1080 });
+				}
+			}
+		},
+		30_000
+	);
+
+	it.skipIf(!runtimeBaseUrl)(
+		'exercises supplied, custom, and static motion contracts on real demo navigation',
 		async () => {
 			browser = await chromium.launch({ headless: true });
 			const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+			const animationName = (locator: ReturnType<typeof page.locator>) =>
+				locator.evaluate((element) => getComputedStyle(element).animationName);
+			const waitForAnimation = (name: string) =>
+				page.waitForFunction(
+					(expected) =>
+						new RegExp(expected).test(
+							getComputedStyle(document.querySelector('.slide-transition-in')!).animationName
+						),
+					name
+				);
 
 			await page.goto(`${runtimeBaseUrl}/demo/demo-1`, { waitUntil: 'networkidle' });
-			const builtInSlide = page.locator('.slide-container[data-slide-index="0"] .slide-print-card');
-			expect(await builtInSlide.getAttribute('class')).toMatch(/slide-entrance-fade-up/);
-			const builtInAnimation = () =>
-				builtInSlide.evaluate((element) => getComputedStyle(element).animationName);
-			expect(await builtInAnimation()).toMatch(/(?:^|-)slide-enter$/);
+			const coverReveal = page
+				.locator('.slide-container[data-slide-index="0"] .reveal-content')
+				.first();
+			expect(await animationName(coverReveal)).toMatch(/reveal-rise/);
 			await page.keyboard.press('ArrowRight');
+			await waitForAnimation('transition-fade-in');
+			const suppliedExit = page.locator('.slide-transition-out');
+			expect(await animationName(suppliedExit)).toMatch(/transition-fade-out/);
+			expect(await suppliedExit.evaluate((el) => getComputedStyle(el).animationDuration)).toBe(
+				'0.35s'
+			);
+			await page.waitForTimeout(400);
 			await page.keyboard.press('ArrowLeft');
-			expect(await builtInSlide.getAttribute('class')).toMatch(/slide-entrance-fade-up/);
-			expect(await builtInAnimation()).toMatch(/(?:^|-)slide-enter$/);
+			await waitForAnimation('transition-fade-in');
+			expect(await animationName(page.locator('.slide-transition-out'))).toMatch(
+				/transition-fade-out/
+			);
+			await page.waitForTimeout(400);
+			await page.keyboard.press('ArrowRight');
+			await page.keyboard.press('ArrowRight');
+			await page.keyboard.press('ArrowRight');
+			await page.waitForTimeout(400);
+			expect(await page.locator('.slide-active').getAttribute('data-slide-index')).toBe('3');
+			expect(await page.locator('.slide-transition-in, .slide-transition-out').count()).toBe(0);
 			await page.emulateMedia({ media: 'screen', reducedMotion: 'reduce' });
-			expect(await builtInAnimation()).toBe('none');
-			await page.emulateMedia({ media: 'print' });
-			expect(await builtInAnimation()).toBe('none');
-			await page.emulateMedia({ media: 'screen', reducedMotion: 'no-preference' });
+			await page.keyboard.press('ArrowLeft');
+			await page.waitForTimeout(50);
+			expect(await page.locator('.slide-transition-in').count()).toBe(0);
+			await page.goto(`${runtimeBaseUrl}/demo/demo-1?print=true`, { waitUntil: 'networkidle' });
+			expect(await page.locator('.slide-print-page').count()).toBe(4);
+			expect(
+				await page
+					.locator('.slide-print-page .reveal-content')
+					.first()
+					.evaluate((el) => getComputedStyle(el).animationName)
+			).toBe('none');
+			expect(
+				await page
+					.locator('.slide-print-card')
+					.first()
+					.evaluate((el) => el.getBoundingClientRect().width)
+			).toBe(1920);
+			await page.goto(`${runtimeBaseUrl}/demo/demo-1`, { waitUntil: 'networkidle' });
 			await page.keyboard.press('o');
 			expect(await page.locator('.overview-card').count()).toBe(4);
-			expect(await page.locator('.slide-entrance-fade-up').count()).toBe(0);
-
-			await page.goto(`${runtimeBaseUrl}/demo/demo-2`, { waitUntil: 'networkidle' });
-			const customSlide = page.locator('.slide-container[data-slide-index="0"] .slide-print-card');
-			expect(await customSlide.getAttribute('class')).toMatch(/demo-two-entrance/);
-			const customMotion = () =>
-				customSlide.evaluate((element) => ({
-					animation: getComputedStyle(element).animationName,
-					duration: getComputedStyle(element).animationDuration
-				}));
-			expect((await customMotion()).animation).toMatch(/(?:^|-)demo-two-enter$/);
-			await page.keyboard.press('ArrowRight');
-			await page.keyboard.press('ArrowLeft');
-			expect(await customSlide.getAttribute('class')).toMatch(/demo-two-entrance/);
-			expect((await customMotion()).animation).toMatch(/(?:^|-)demo-two-enter$/);
-
-			await page.emulateMedia({ media: 'screen', reducedMotion: 'reduce' });
-			expect((await customMotion()).animation).toBe('none');
-			await page.emulateMedia({ media: 'print' });
-			expect((await customMotion()).animation).toBe('none');
 
 			await page.emulateMedia({ media: 'screen', reducedMotion: 'no-preference' });
-			await page.keyboard.press('o');
-			const overviewCards = page.locator('.overview-card');
-			expect(await overviewCards.count()).toBe(4);
-			expect(await page.locator('.demo-two-entrance').count()).toBe(0);
+			await page.goto(`${runtimeBaseUrl}/demo/demo-2`, { waitUntil: 'networkidle' });
+			const customReveal = page
+				.locator('.slide-container[data-slide-index="0"] .reveal-content')
+				.first();
+			expect(await animationName(customReveal)).toMatch(/demo-two-reveal/);
+			await page.keyboard.press('ArrowRight');
+			await waitForAnimation('demo-two-slide-enter');
+			const customExit = page.locator('.slide-transition-out');
+			expect(await animationName(customExit)).toMatch(/demo-two-slide-exit/);
+			expect(await customExit.evaluate((el) => getComputedStyle(el).animationDuration)).toBe(
+				'0.7s'
+			);
+			await page.waitForTimeout(750);
+			await page.keyboard.press('ArrowLeft');
+			await waitForAnimation('demo-two-slide-enter');
+			expect(await animationName(page.locator('.slide-transition-out'))).toMatch(
+				/demo-two-slide-exit/
+			);
+			await page.waitForTimeout(750);
+			await page.emulateMedia({ media: 'screen', reducedMotion: 'reduce' });
+			expect(await animationName(customReveal)).toBe('none');
+			await page.goto(`${runtimeBaseUrl}/demo/demo-2?print=true`, { waitUntil: 'networkidle' });
+			expect(await page.locator('.slide-print-page').count()).toBe(4);
 			expect(
-				await overviewCards.first().evaluate((element) => getComputedStyle(element).animationName)
+				await page
+					.locator('.slide-print-page .reveal-content')
+					.first()
+					.evaluate((el) => getComputedStyle(el).animationName)
 			).toBe('none');
+			await page.goto(`${runtimeBaseUrl}/demo/demo-2`, { waitUntil: 'networkidle' });
+			await page.keyboard.press('o');
+			expect(await page.locator('.overview-card').count()).toBe(4);
+
+			await page.goto(`${runtimeBaseUrl}/demo/demo-3`, { waitUntil: 'networkidle' });
+			await page.keyboard.press('ArrowRight');
+			await page.waitForTimeout(50);
+			expect(await page.locator('.slide-transition-in, .slide-transition-out').count()).toBe(0);
+			expect(await page.locator('.reveal-content').count()).toBe(0);
+			expect(await page.locator('.slide-active').getAttribute('data-slide-index')).toBe('1');
 		},
-		20_000
+		30_000
 	);
 
 	it.skipIf(!runtimeBaseUrl)(
@@ -161,5 +280,114 @@ describe('optional slide entrance motion', () => {
 			expect(reduced.childTransition).toBe('2s');
 		},
 		20_000
+	);
+
+	it.skipIf(!runtimeBaseUrl)(
+		'plays demo-2 internal effects on slides 2–4, staggers guidance cards, and keeps them still in reduced motion and print',
+		async () => {
+			browser = await chromium.launch({ headless: true });
+			const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+			await page.goto(`${runtimeBaseUrl}/demo/demo-2`, { waitUntil: 'networkidle' });
+
+			const activeSlide = () => page.locator('.slide-active');
+			const goTo = async (index: number) => {
+				while ((await activeSlide().getAttribute('data-slide-index')) !== String(index)) {
+					const current = Number(await activeSlide().getAttribute('data-slide-index'));
+					await page.keyboard.press(current < index ? 'ArrowRight' : 'ArrowLeft');
+					await page.waitForTimeout(750);
+				}
+			};
+			const animationName = (locator: ReturnType<typeof page.locator>) =>
+				locator.evaluate((element) => getComputedStyle(element).animationName);
+
+			await goTo(1);
+			const landscape = page.locator('.demo-two-landscape-reveal');
+			expect(await landscape.count()).toBe(1);
+			expect(await animationName(landscape)).toMatch(/demo-two-landscape/);
+			await goTo(2);
+			const cards = page.locator('.demo-two-guidance-card');
+			expect(await cards.count()).toBe(3);
+			expect(
+				(await Promise.all((await cards.all()).map(animationName))).every((name) =>
+					name.includes('demo-two-card-arrive')
+				)
+			).toBe(true);
+			expect(
+				await Promise.all(
+					(await cards.all()).map((card) =>
+						card.evaluate((element) => getComputedStyle(element).animationDelay)
+					)
+				)
+			).toEqual(['0.12s', '0.26s', '0.4s']);
+			await goTo(3);
+			const conclusion = page.locator('.demo-two-conclusion');
+			expect(await conclusion.count()).toBe(1);
+			expect(await animationName(conclusion)).toMatch(/demo-two-conclusion/);
+			await goTo(2);
+			expect(
+				(await Promise.all((await cards.all()).map(animationName))).every((name) =>
+					name.includes('demo-two-card-arrive')
+				)
+			).toBe(true);
+			await goTo(1);
+			expect(await animationName(landscape)).toMatch(/demo-two-landscape/);
+			await goTo(2);
+			expect(
+				(await Promise.all((await cards.all()).map(animationName))).every((name) =>
+					name.includes('demo-two-card-arrive')
+				)
+			).toBe(true);
+			await goTo(3);
+			expect(await animationName(conclusion)).toMatch(/demo-two-conclusion/);
+			const screenBounds = await page.evaluate(() => ({
+				width: document.documentElement.scrollWidth,
+				height: document.documentElement.scrollHeight
+			}));
+			expect(screenBounds).toEqual({ width: 1920, height: 1080 });
+
+			await page.emulateMedia({ media: 'screen', reducedMotion: 'reduce' });
+			await page.waitForTimeout(50);
+			await goTo(2);
+			const reducedContent = page.locator('.slide-container[data-slide-index="2"] .reveal-content');
+			expect(await reducedContent.count()).toBe(3);
+			for (const reveal of await reducedContent.all()) {
+				expect(await animationName(reveal)).toBe('none');
+				expect(await reveal.evaluate((element) => getComputedStyle(element).animationDelay)).toBe(
+					'0s'
+				);
+			}
+			await goTo(3);
+			const reducedConclusion = page.locator(
+				'.slide-container[data-slide-index="3"] .reveal-content'
+			);
+			expect(await animationName(reducedConclusion)).toBe('none');
+			expect(
+				await reducedConclusion.evaluate((element) => getComputedStyle(element).animationDelay)
+			).toBe('0s');
+
+			await page.goto(`${runtimeBaseUrl}/demo/demo-2?print=true`, { waitUntil: 'networkidle' });
+			await page.emulateMedia({ media: 'print' });
+			expect(await page.locator('.slide-print-page').count()).toBe(4);
+			for (const printPage of await page.locator('.slide-print-page').all()) {
+				expect(
+					await printPage.evaluate((element) => ({
+						width: (element as HTMLElement).offsetWidth,
+						height: (element as HTMLElement).offsetHeight,
+						contentLength: element.textContent?.trim().length ?? 0
+					}))
+				).toEqual({ width: 1920, height: 1080, contentLength: expect.any(Number) });
+				expect(
+					await printPage.evaluate((element) => element.textContent?.trim().length ?? 0)
+				).toBeGreaterThan(0);
+			}
+			const printReveals = page.locator('.slide-print-page .reveal-content');
+			for (const reveal of await printReveals.all()) {
+				expect(await animationName(reveal)).toBe('none');
+				expect(await reveal.evaluate((element) => getComputedStyle(element).animationDelay)).toBe(
+					'0s'
+				);
+			}
+		},
+		30_000
 	);
 });
