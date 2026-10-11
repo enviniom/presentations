@@ -1,6 +1,8 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 	import { getDeckContext } from './deck-state.svelte.js';
+	import { setSlideRevealContext } from './Reveal.svelte';
+	import { resolveSlideTransition, type SlideTransition } from './slide-transitions.js';
 
 	interface Props {
 		/** Title used in Overview navigator and metadata */
@@ -21,6 +23,8 @@
 		entrance?: 'fade-up';
 		/** Presentation-authored class; takes precedence over entrance and animate */
 		entranceClass?: string;
+		/** Override the Deck's between-slide effect; false disables it for this slide. */
+		transition?: SlideTransition;
 		/** Slide content */
 		children?: Snippet;
 
@@ -39,14 +43,41 @@
 		animate = false,
 		entrance = undefined,
 		entranceClass = '',
+		transition = undefined,
 		children,
 		layout = 'blank',
 		footer
 	}: Props = $props();
 
 	const deck = getDeckContext();
-	const slideIndex = deck.registerSlide();
+	const slideIndex = deck.registerSlide(untrack(() => transition));
+	$effect(() => deck.updateSlideTransition(slideIndex, transition));
 	const isActive = $derived(deck.current === slideIndex);
+	setSlideRevealContext({
+		get active() {
+			return isActive;
+		},
+		get overview() {
+			return deck.isOverview;
+		},
+		get print() {
+			return deck.isPrint;
+		}
+	});
+	const isTransitioningOut = $derived(deck.transitionFrom === slideIndex);
+	const isTransitioning = $derived(isTransitioningOut || deck.transitionTo === slideIndex);
+	const slideTransition = $derived(resolveSlideTransition(transition, deck.transition));
+	const transitionClass = $derived.by(() => {
+		const effectClass = isTransitioningOut
+			? slideTransition?.exitClass
+			: deck.transitionTo === slideIndex
+				? slideTransition?.enterClass
+				: undefined;
+		if (effectClass === 'transition-slide-enter' || effectClass === 'transition-slide-exit') {
+			return `${effectClass} ${effectClass}-${deck.transitionDirection}`;
+		}
+		return effectClass ?? '';
+	});
 </script>
 
 {#if deck.isOverview && !deck.isPrint}
@@ -64,6 +95,7 @@
 		<button
 			type="button"
 			onclick={() => deck.goTo(slideIndex)}
+			data-testid="overview-card"
 			class="overview-card group relative aspect-video w-full cursor-pointer overflow-hidden rounded-xl border-2 p-4 text-left shadow-lg transition-all hover:scale-105 {isActive
 				? 'border-white ring-2 ring-white/50'
 				: 'border-white/10 hover:border-white/30'} {bg ? bg : 'bg-zinc-900 text-white'}"
@@ -87,10 +119,16 @@
 {:else}
 	<!-- Virtual 1920x1080 Slide Canvas (Agnostic frame) -->
 	<div
-		class="slide-container absolute inset-0 h-[1080px] w-[1920px] overflow-hidden"
-		class:hidden={!isActive && !deck.isPrint}
+		data-testid="slide-{slideIndex}"
+		class="slide-container absolute inset-0 h-[1080px] w-[1920px] overflow-hidden {transitionClass}"
+		class:hidden={!isActive && !isTransitioningOut && !deck.isPrint}
 		class:slide-active={isActive}
+		class:slide-transition-in={deck.transitionTo === slideIndex}
+		class:slide-transition-out={isTransitioningOut}
 		class:slide-print-page={deck.isPrint}
+		aria-hidden={isTransitioningOut && !deck.isPrint ? 'true' : undefined}
+		inert={isTransitioningOut && !deck.isPrint}
+		data-transition-direction={isTransitioning ? deck.transitionDirection : undefined}
 		data-slide-index={slideIndex}
 	>
 		<div
@@ -181,6 +219,104 @@
 		}
 	}
 
+	.slide-container.slide-transition-in {
+		z-index: 2;
+	}
+
+	.slide-container.slide-transition-out {
+		z-index: 1;
+	}
+
+	.transition-fade-enter {
+		z-index: 2;
+		animation: transition-fade-in 350ms ease-out both;
+	}
+
+	.transition-fade-exit {
+		z-index: 1;
+		animation: transition-fade-out 350ms ease-in both;
+	}
+
+	.transition-slide-enter {
+		z-index: 2;
+		animation: transition-slide-in 350ms cubic-bezier(0.22, 1, 0.36, 1) both;
+	}
+
+	.transition-slide-exit {
+		z-index: 1;
+		animation: transition-slide-out 350ms cubic-bezier(0.4, 0, 1, 1) both;
+	}
+
+	.transition-slide-enter-backward {
+		animation-name: transition-slide-in-reverse;
+	}
+
+	.transition-slide-exit-backward {
+		animation-name: transition-slide-out-reverse;
+	}
+
+	@keyframes transition-fade-in {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	@keyframes transition-fade-out {
+		from {
+			opacity: 1;
+		}
+		to {
+			opacity: 0;
+		}
+	}
+
+	@keyframes transition-slide-in {
+		from {
+			opacity: 0;
+			transform: translateX(5%);
+		}
+		to {
+			opacity: 1;
+			transform: translateX(0);
+		}
+	}
+
+	@keyframes transition-slide-out {
+		from {
+			opacity: 1;
+			transform: translateX(0);
+		}
+		to {
+			opacity: 0;
+			transform: translateX(-5%);
+		}
+	}
+
+	@keyframes transition-slide-in-reverse {
+		from {
+			opacity: 0;
+			transform: translateX(-5%);
+		}
+		to {
+			opacity: 1;
+			transform: translateX(0);
+		}
+	}
+
+	@keyframes transition-slide-out-reverse {
+		from {
+			opacity: 1;
+			transform: translateX(0);
+		}
+		to {
+			opacity: 0;
+			transform: translateX(5%);
+		}
+	}
+
 	.slide-animate,
 	.slide-entrance-fade-up {
 		animation: slide-enter 350ms ease-out both;
@@ -192,7 +328,9 @@
 			animation: none !important;
 		}
 
-		.slide-motion-custom {
+		.slide-motion-custom,
+		.slide-transition-in,
+		.slide-transition-out {
 			animation: none !important;
 			transition: none !important;
 		}
@@ -204,7 +342,9 @@
 			animation: none !important;
 		}
 
-		.slide-motion-custom {
+		.slide-motion-custom,
+		.slide-transition-in,
+		.slide-transition-out {
 			animation: none !important;
 			transition: none !important;
 		}

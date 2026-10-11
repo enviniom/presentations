@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, untrack, type Snippet } from 'svelte';
+	import { onDestroy, onMount, untrack, type Snippet } from 'svelte';
 	import { DeckState, setDeckContext, type OverviewCardData } from './deck-state.svelte.js';
 
 	interface Props {
@@ -18,6 +18,8 @@
 		overviewCardStyle?: string;
 		/** Optional snippet replacing each complete overview card */
 		overviewCard?: Snippet<[OverviewCardData]>;
+		/** Optional default between-slide effect; omitted by default. */
+		transition?: import('./slide-transitions.js').SlideTransition;
 		/** Background color used for the outer frame on printed slides */
 		printFrameBackground?: string;
 		/** Custom classes applied to the progress bar (e.g. bg-rose-500, bg-blue-500) */
@@ -47,6 +49,7 @@
 		progressTrackStyle = '',
 		overviewCardStyle = '',
 		overviewCard,
+		transition = undefined,
 		printFrameBackground = '#18181b',
 		progressClass = '',
 		accentClass = '',
@@ -60,14 +63,18 @@
 	}: Props = $props();
 
 	const deck = new DeckState();
+	deck.transition = untrack(() => transition);
 	deck.overviewCardStyle = untrack(() => overviewCardStyle);
 	deck.overviewCard = untrack(() => overviewCard);
 	setDeckContext(deck);
+	onDestroy(() => deck.cancelTransition());
 
 	$effect(() => {
+		if (deck.isPrint || deck.isOverview) deck.cancelTransition();
 		deck.title = title;
 		deck.client = client;
 		deck.author = author;
+		deck.transition = transition;
 		deck.overviewCardStyle = overviewCardStyle;
 		deck.overviewCard = overviewCard;
 	});
@@ -232,8 +239,13 @@
 		const handleAfterPrint = () => {
 			if (!printModeFromUrl) deck.isPrint = false;
 		};
+		const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		const handleMotionPreferenceChange = (event: MediaQueryListEvent) => {
+			if (event.matches) deck.cancelTransition();
+		};
 
 		window.addEventListener('keydown', handleKeyDown);
+		reducedMotionQuery.addEventListener('change', handleMotionPreferenceChange);
 		window.addEventListener('beforeprint', handleBeforePrint);
 		window.addEventListener('afterprint', handleAfterPrint);
 		document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -244,6 +256,7 @@
 			window.removeEventListener('beforeprint', handleBeforePrint);
 			window.removeEventListener('afterprint', handleAfterPrint);
 			document.removeEventListener('fullscreenchange', handleFullscreenChange);
+			reducedMotionQuery.removeEventListener('change', handleMotionPreferenceChange);
 		};
 	});
 
